@@ -1,0 +1,38 @@
+{
+    "name": "INF8601 Labo 1 (Clang/CMake/Ninja)",
+    // Builds the same image as ../Dockerfile — kept independent from compose.yaml, whose
+    // numeric "${UID}:${GID}" container user has no matching /etc/passwd entry and confuses
+    // the Dev Containers extension's own user handling.
+    "build": {
+        "dockerfile": "../Dockerfile"
+    },
+    "features": {
+        // Adds a real non-root user for VS Code Server to run as; "automatic" UID/GID plus
+        // updateRemoteUserUID below map it to your host user so bind-mounted files stay
+        // editable outside the container.
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": false,
+            "configureZshAsDefaultShell": false,
+            "username": "vscode",
+            "userUid": "automatic",
+            "userGid": "automatic",
+            "upgradePackages": false
+        }
+    },
+    "remoteUser": "vscode",
+    "updateRemoteUserUID": true,
+    // Matches compose.yaml: needed for gdb (breakpoints, ptrace) to work in the container.
+    "runArgs": [
+        "--cap-add=SYS_PTRACE",
+        "--security-opt", "seccomp=unconfined"
+    ],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cmake-tools",
+                "ms-vscode.cpptools",
+                "xaver.clang-format"
+            ]
+        }
+    }
+}

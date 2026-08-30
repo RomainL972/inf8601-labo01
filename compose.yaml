@@ -1,0 +1,20 @@
+services:
+  dev:
+    build: .
+    image: inf8601-labo01:dev
+    working_dir: /workspace
+    # Bind-mounts the whole repo: edits on the host are visible inside the container, and
+    # data/ (fetched once via ./data/fetch.py) persists across runs instead of being
+    # re-downloaded every time the container is recreated.
+    volumes:
+      - .:/workspace
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    # Avoids root-owned files on the host. UID/GID aren't exported by the shell by default;
+    # run with e.g. `UID=$(id -u) GID=$(id -g) docker compose run --rm dev`.
+    user: "${UID:-1000}:${GID:-1000}"
+    tty: true
+    stdin_open: true
+    command: bash

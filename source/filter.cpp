@@ -20,6 +20,12 @@ static void hsv_to_rgb(unsigned char hsv[3], unsigned char rgb[3]) {
 
     /* taken from https://stackoverflow.com/a/14733008 */
 
+    unsigned char region;
+    unsigned char remainder;
+    unsigned char p;
+    unsigned char q;
+    unsigned char t;
+
     if (s == 0) {
         r = v;
         g = v;
@@ -27,12 +33,12 @@ static void hsv_to_rgb(unsigned char hsv[3], unsigned char rgb[3]) {
         goto done;
     }
 
-    unsigned char region    = h / 43;
-    unsigned char remainder = (h - (region * 43)) * 6;
+    region    = h / 43;
+    remainder = (h - (region * 43)) * 6;
 
-    unsigned char p = (v * (255 - s)) >> 8;
-    unsigned char q = (v * (255 - ((s * remainder) >> 8))) >> 8;
-    unsigned char t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
+    p = (v * (255 - s)) >> 8;
+    q = (v * (255 - ((s * remainder) >> 8))) >> 8;
+    t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
 
     switch (region) {
     case 0:
@@ -144,13 +150,13 @@ image_t* filter_sobel(image_t* image) {
         goto fail_exit;
     }
 
-    const int gx[3][3] = {
+    static constexpr int gx[3][3] = {
         {1, 0, -1},
         {2, 0, -2},
         {1, 0, -1},
     };
 
-    const int gy[3][3] = {
+    static constexpr int gy[3][3] = {
         {1, 2, 1},
         {0, 0, 0},
         {-1, -2, -1},
@@ -324,7 +330,7 @@ fail_exit:
 }
 
 image_t* filter_edge_identity(image_t* image) {
-    const double m[3][3] = {
+    static constexpr double m[3][3] = {
         {0, 0, 0},
         {0, 1, 0},
         {0, 0, 0},
@@ -334,7 +340,7 @@ image_t* filter_edge_identity(image_t* image) {
 }
 
 image_t* filter_edge_detect(image_t* image) {
-    const double m[3][3] = {
+    static constexpr double m[3][3] = {
         {-1, -1, -1},
         {-1, 8, -1},
         {-1, -1, -1},
@@ -344,7 +350,7 @@ image_t* filter_edge_detect(image_t* image) {
 }
 
 image_t* filter_sharpen(image_t* image) {
-    const double m[3][3] = {
+    static constexpr double m[3][3] = {
         {0, -2, 0},
         {-2, 9, -2},
         {0, -2, 0},
@@ -354,7 +360,7 @@ image_t* filter_sharpen(image_t* image) {
 }
 
 image_t* filter_box_blur(image_t* image) {
-    const double m[3][3] = {
+    static constexpr double m[3][3] = {
         {1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0},
         {1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0},
         {1.0 / 9.0, 1.0 / 9.0, 1.0 / 9.0},
@@ -364,7 +370,7 @@ image_t* filter_box_blur(image_t* image) {
 }
 
 image_t* filter_gaussian_blur(image_t* image) {
-    const double m[3][3] = {
+    static constexpr double m[3][3] = {
         {1.0 / 16.0, 2.0 / 16.0, 1.0 / 16.0},
         {2.0 / 16.0, 4.0 / 16.0, 4.0 / 16.0},
         {1.0 / 16.0, 2.0 / 16.0, 1.0 / 16.0},
@@ -382,7 +388,7 @@ image_t* filter_horizontal_flip(image_t* image) {
     for (int j = 0; j < image->height; j++) {
         for (int i = 0; i < image->width; i++) {
             pixel_t* pixel     = image_get_pixel(image, i, j);
-            pixel_t* new_pixel = image_get_pixel(new_image, (image->width-1)-i, j);
+            pixel_t* new_pixel = image_get_pixel(new_image, (image->width - 1) - i, j);
 
             *new_pixel = *pixel;
         }
@@ -394,7 +400,6 @@ fail_exit:
     return NULL;
 }
 
-
 image_t* filter_vertical_flip(image_t* image) {
     image_t* new_image = image_create(image->id, image->width, image->height);
     if (new_image == NULL) {
@@ -404,7 +409,7 @@ image_t* filter_vertical_flip(image_t* image) {
     for (int j = 0; j < image->height; j++) {
         for (int i = 0; i < image->width; i++) {
             pixel_t* pixel     = image_get_pixel(image, i, j);
-            pixel_t* new_pixel = image_get_pixel(new_image, i, (image->height-j)-1);
+            pixel_t* new_pixel = image_get_pixel(new_image, i, (image->height - j) - 1);
 
             *new_pixel = *pixel;
         }

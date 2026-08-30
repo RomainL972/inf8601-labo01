@@ -1,0 +1,16 @@
+{
+    // This config ships as-is to students (charge/create-student-variant.py copies .vscode/
+    // unmodified) whose CMakeLists.txt no longer has VARIANT at all, so nothing here should
+    // reference it. In this unified TA repo, where VARIANT is still required, pass
+    // -DVARIANT=<n> yourself via CMake Tools' configure args when you need a specific variant.
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.generator": "Ninja",
+    "cmake.configureOnOpen": true,
+    // Default args used by CMake Tools' "Debug"/"Run" buttons for whichever target is
+    // selected (pipeline, pipeline-notbb, check-pipelines, ...); override per-launch as needed.
+    "cmake.debugConfig": {
+        "args": ["--directory", "${workspaceFolder}/data"],
+        "cwd": "${workspaceFolder}"
+    }
+}

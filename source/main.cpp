@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "image.h"
 #include "log.h"
@@ -14,8 +15,10 @@ static void show_help(FILE* f, const char* exec_name) {
     fprintf(f, "Usage: %s [OPTION]...\n", exec_name);
     fprintf(f, "\n");
     fprintf(f, "Options:\n");
-    fprintf(f, "  --directory PATH                path to read and write images\n");
-    fprintf(f, "  --pipeline [serial|pthread|tbb] pipeline algorithm to use\n");
+    fprintf(f, "  --directory PATH                     path to read images\n");
+    fprintf(f, "  --out PATH                           path to write images\n");
+    fprintf(f, "  --quiet                              don't print anything\n");
+    fprintf(f, "  --pipeline [serial|pthread|tbb|all]  pipeline algorithm to use\n");
 }
 
 static void fail_missing_argument(const char* exec_name, const char* opt) {
@@ -49,12 +52,45 @@ static void sigint_handler(int sig) {
     image_dir.stop = true;
 }
 
+__attribute__((weak)) int pipeline_serial(image_dir_t* image_dir) {
+    return -1;
+}
+
+__attribute__((weak)) int pipeline_pthread(image_dir_t* image_dir) {
+    return -1;
+}
+
+__attribute__((weak)) int pipeline_tbb(image_dir_t* image_dir) {
+    return -1;
+}
+
+static int run_pipeline(image_dir_t* image_dir, const char* input_dir_name, const char* output_dir_name,
+                         const char* name, int (*fn)(image_dir_t*)) {
+    image_dir_reset(image_dir, input_dir_name, output_dir_name, name);
+
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    int ret = fn(image_dir);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    double elapsed = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_nsec - start.tv_nsec) / 1e9;
+    printf("%s: %.3fs\n", name, elapsed);
+
+    return ret;
+}
+
 int main(int argc, char* argv[]) {
     char* exec_name           = argv[0];
     bool use_pipeline_serial  = false;
     bool use_pipeline_pthread = false;
     bool use_pipeline_tbb     = false;
+    bool use_pipeline_all     = false;
     int use_pipeline_count    = 0;
+    char* input_dir_name;
+    char* output_dir_name;
+    bool quiet = false;
+
+    output_dir_name = NULL;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp("--directory", argv[i]) == 0) {
@@ -62,7 +98,14 @@ int main(int argc, char* argv[]) {
                 fail_missing_argument(exec_name, argv[i]);
             }
 
-            image_dir.name = argv[++i];
+            input_dir_name = argv[++i];
+
+        } else if (strcmp("--out", argv[i]) == 0) {
+            if (i > argc - 1) {
+                fail_missing_argument(exec_name, argv[i]);
+            }
+
+            output_dir_name = argv[++i];
         } else if (strcmp("--pipeline", argv[i]) == 0) {
             if (i > argc - 1) {
                 fail_missing_argument(exec_name, argv[i]);
@@ -77,11 +120,16 @@ int main(int argc, char* argv[]) {
             } else if (strcmp("tbb", argv[i + 1]) == 0) {
                 use_pipeline_tbb = true;
                 use_pipeline_count++;
+            } else if (strcmp("all", argv[i + 1]) == 0) {
+                use_pipeline_all = true;
+                use_pipeline_count++;
             } else {
                 fail_unknown_pipeline_algorithm(exec_name, argv[i + 1]);
             }
 
             i++;
+        } else if (strcmp("--quiet", argv[i]) == 0) {
+            quiet = true;
         } else if (strcmp("--help", argv[i]) == 0) {
             show_help(stdout, exec_name);
             exit(0);
@@ -103,18 +151,28 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
+    if (quiet) {
+        fclose(stdout);
+        fclose(stderr);
+    }
+
+    if (!output_dir_name) {
+        output_dir_name = input_dir_name;
+    }
+
     printf("Starting image pipeline, press CTRL+C to stop loading images\n");
 
-    int ret;
-    if (use_pipeline_serial) {
-        image_dir.save_prefix = "serial";
-        ret                   = pipeline_serial(&image_dir);
+    int ret = 0;
+    if (use_pipeline_all) {
+        ret |= run_pipeline(&image_dir, input_dir_name, output_dir_name, "serial", pipeline_serial);
+        ret |= run_pipeline(&image_dir, input_dir_name, output_dir_name, "pthread", pipeline_pthread);
+        ret |= run_pipeline(&image_dir, input_dir_name, output_dir_name, "tbb", pipeline_tbb);
+    } else if (use_pipeline_serial) {
+        ret = run_pipeline(&image_dir, input_dir_name, output_dir_name, "serial", pipeline_serial);
     } else if (use_pipeline_pthread) {
-        image_dir.save_prefix = "pthread";
-        ret                   = pipeline_pthread(&image_dir);
+        ret = run_pipeline(&image_dir, input_dir_name, output_dir_name, "pthread", pipeline_pthread);
     } else if (use_pipeline_tbb) {
-        image_dir.save_prefix = "tbb";
-        ret                   = pipeline_tbb(&image_dir);
+        ret = run_pipeline(&image_dir, input_dir_name, output_dir_name, "tbb", pipeline_tbb);
     } else {
         LOG_ERROR("no pipeline configured");
         exit(1);
